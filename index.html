@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stone Mill – UP Quarry Search</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#222;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+#header{background:#1F4E79;color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+#header h1{font-size:1.15rem;font-weight:700;letter-spacing:.3px}
+#header span{font-size:.8rem;opacity:.75;margin-left:4px}
+.badge{background:#fff;color:#1F4E79;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:auto}
+
+/* FILTERS */
+#filters{background:#fff;border-bottom:1px solid #d0d6de;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+#filters select,#filters input{padding:5px 9px;border:1px solid #c5ccd6;border-radius:5px;font-size:.8rem;background:#fff;color:#333}
+#filters input{width:180px}
+#filters label{font-size:.8rem;color:#555;display:flex;align-items:center;gap:5px;cursor:pointer}
+.btn-reset{padding:5px 12px;background:#1F4E79;color:#fff;border:none;border-radius:5px;font-size:.8rem;cursor:pointer}
+.btn-reset:hover{background:#163a5e}
+#count-badge{margin-left:auto;font-size:.78rem;color:#666}
+
+/* MAIN */
+#main{display:flex;flex:1;overflow:hidden;gap:0}
+
+/* MAP */
+#map-wrap{flex:0 0 55%;position:relative;border-right:1px solid #d0d6de}
+#map{width:100%;height:100%}
+
+/* DETAIL PANEL */
+#detail{flex:0 0 45%;overflow-y:auto;background:#fff;padding:0}
+#detail-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#999;gap:8px}
+#detail-empty svg{opacity:.25}
+#detail-content{display:none;padding:18px}
+.detail-title{font-size:1rem;font-weight:700;color:#1F4E79;margin-bottom:4px}
+.detail-stone{font-size:.85rem;color:#555;margin-bottom:10px}
+.suit-pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;letter-spacing:.4px;margin-bottom:12px}
+.suit-VIABLE{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.suit-VERIFY{background:#fff8e1;color:#e65100;border:1px solid #ffe082}
+.suit-NOT-VIABLE{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+.score-badge{display:inline-block;padding:2px 9px;background:#1F4E79;color:#fff;border-radius:10px;font-size:.72rem;font-weight:700;margin-left:8px}
+.dl{display:grid;grid-template-columns:100px 1fr;gap:4px 10px;font-size:.8rem;margin-bottom:14px}
+.dl dt{color:#888;font-weight:600}
+.dl dd{color:#222}
+.action-link{display:inline-block;padding:6px 14px;border-radius:5px;font-size:.8rem;font-weight:600;text-decoration:none;margin-right:6px;margin-bottom:6px}
+.btn-map{background:#1F4E79;color:#fff}
+.btn-call{background:#2e7d32;color:#fff}
+.detail-notes{background:#f7f9fc;border-left:3px solid #1F4E79;padding:8px 12px;font-size:.79rem;color:#444;border-radius:0 4px 4px 0;margin-top:10px}
+
+/* TABLE */
+#table-wrap{flex:0 0 100%;overflow:auto;border-top:2px solid #1F4E79;max-height:35vh;flex-shrink:0;position:relative}
+#tbl{width:100%;border-collapse:collapse;font-size:.75rem;background:#fff}
+#tbl thead th{background:#1F4E79;color:#fff;padding:7px 8px;text-align:left;position:sticky;top:0;cursor:pointer;white-space:nowrap;z-index:2;user-select:none}
+#tbl thead th:hover{background:#163a5e}
+#tbl thead th.sort-asc::after{content:" ▲";font-size:.6rem}
+#tbl thead th.sort-desc::after{content:" ▼";font-size:.6rem}
+#tbl tbody tr{cursor:pointer;transition:background .12s}
+#tbl tbody tr:hover{background:#e3edf7}
+#tbl tbody tr.active{background:#cce0f5}
+#tbl tbody tr:nth-child(even){background:#f7f9fc}
+#tbl tbody tr:nth-child(even):hover{background:#e3edf7}
+#tbl tbody tr.active:nth-child(even){background:#cce0f5}
+#tbl td{padding:5px 8px;border-bottom:1px solid #e8ecf0;vertical-align:top}
+.pill{display:inline-block;padding:1px 7px;border-radius:8px;font-size:.68rem;font-weight:700}
+.pill-VIABLE{background:#e8f5e9;color:#2e7d32}
+.pill-VERIFY{background:#fff3cd;color:#856404}
+.pill-NOT{background:#ffebee;color:#c62828}
+
+/* SPLIT LAYOUT */
+#lower{display:flex;flex-direction:row;flex:1;overflow:hidden}
+#left-col{display:flex;flex-direction:column;flex:0 0 55%;overflow:hidden;border-right:1px solid #d0d6de}
+#right-col{flex:0 0 45%;overflow:hidden;display:flex;flex-direction:column}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="5" fill="#fff3"/><path d="M4 22 L14 6 L24 22 Z" fill="none" stroke="#fff" stroke-width="2"/><rect x="11" y="16" width="6" height="6" fill="#fff"/></svg>
+  <h1>Stone Mill <span>UP Quarry Search</span></h1>
+  <div class="badge" id="site-count">34 Sites</div>
+</div>
+
+<div id="filters">
+  <select id="f-suit"><option value="">All Suitability</option><option>VIABLE</option><option>VERIFY</option><option>NOT VIABLE</option></select>
+  <select id="f-county"><option value="">All Counties</option></select>
+  <select id="f-stone"><option value="">All Stone Types</option></select>
+  <label><input type="checkbox" id="f-top11"> Top 11 Scored Only</label>
+  <input type="text" id="f-search" placeholder="Search owner, notes…">
+  <button class="btn-reset" onclick="resetFilters()">Reset</button>
+  <span id="count-badge"></span>
+</div>
+
+<div id="lower">
+  <div id="left-col">
+    <div id="map-wrap"><div id="map"></div></div>
+    <div id="table-wrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th data-col="id">#</th>
+            <th data-col="stone">Stone Type</th>
+            <th data-col="county">County</th>
+            <th data-col="plss">PLSS</th>
+            <th data-col="suit">Suitability</th>
+            <th data-col="score">Score</th>
+            <th data-col="owner">Owner</th>
+            <th data-col="phone">Phone</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="right-col">
+    <div id="detail">
+      <div id="detail-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <p>Select a site from the map or table</p>
+      </div>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SITES = [
+  {id:"18C",stone:"Granite Porphyry",county:"Marquette",plss:"T47N R29W S23",lat:46.4612,lon:-87.9313,score:18,notes:"TOP RATED. Pink granite, consistent color over half-mile area, relatively fracture-free. Core drilled Dec 1998. Best monument stone potential in entire study.",suit:"VIABLE",owner:"Lyme Great Lakes Timberlands LLC",address:"1 Wedgewood Ct, PO Box 98, Lyme, NH 03768",phone:"(603) 795-2020",status:"Top priority — negotiate surface rights. Formerly Escanaba Paper Co. land."},
+  {id:"7A",stone:"Sandstone (Jacobsville)",county:"Alger",plss:"T47N R21W S26",lat:46.4467,lon:-86.9213,score:16,notes:"Brownstone Quarry (filled ~1975 during M28 rebuild). Reddish-brown. Large clearing for test drilling. Core drilling scheduled 1999.",suit:"VIABLE",owner:"Leonard Wilson / Brownstone Inn",address:"M28 near Munising, Alger Co., MI",phone:"(906) 387-XXXX",status:"Locate current landowner — Leonard Wilson or successor."},
+  {id:"72",stone:"Sandstone (Jacobsville)",county:"Houghton",plss:"T55N R33W S1",lat:47.2004,lon:-88.468,score:16,notes:"Former quarry, now flooded. Excellent ridge running NNE-SSW with plenty of exploration land. Reddish-brown, fine-grained. Core drilled Dec 1999.",suit:"VIABLE",owner:"Lake Superior Land Company, Inc.",address:"56730 Calumet Ave Ste M, Calumet, MI 49913",phone:"(906) 337-0202",status:"Contact Lake Superior Land Co. in Calumet re: surface rights."},
+  {id:"97",stone:"Bell Creek Gneiss",county:"Marquette",plss:"T47N R28W S29",lat:46.4467,lon:-87.8682,score:15,notes:"Bright red with quartz phenocrysts. Virtually on Hwy 478, S of Greenwood Reservoir — very accessible. Contiguous deposit. Core drilled Dec 1998.",suit:"VIABLE",owner:"Cleveland-Cliffs Inc.",address:"200 Public Square, Cleveland, OH 44114",phone:"(216) 694-5700",status:"Contact Cleveland-Cliffs Land Dept. re: stone access/lease."},
+  {id:"3",stone:"Verde Antique (Peridotite)",county:"Marquette",plss:"T48N R27W S31",lat:46.5192,lon:-87.7684,score:15,notes:"Peninsula Quarry (Ropes Mine). Striking green/black/white/purple banded stone. Large cliff, blocks up to 6 ft square possible. Locked gate — coordinate with CCI.",suit:"VERIFY",owner:"Cleveland-Cliffs Inc.",address:"200 Public Square, Cleveland, OH 44114",phone:"(216) 694-5700",status:"Contact Cleveland-Cliffs Land Dept. re: Peninsula Quarry access."},
+  {id:"96",stone:"Syenite Porphyry",county:"Marquette",plss:"T48N R26W S17",lat:46.5627,lon:-87.6209,score:15,notes:"Pink/black, large-grained, NO silica — softer than most granites, easier to cut. Large surface deposit N of Negaunee. Prelim drilling completed.",suit:"VERIFY",owner:"Lyme Great Lakes / Bishop Trust",address:"1 Wedgewood Ct, PO Box 98, Lyme, NH 03768",phone:"(603) 795-2020",status:"Confirm ownership split. Contact Lyme Great Lakes."},
+  {id:"62-71",stone:"Sandstone (Jacobsville)",county:"Houghton",plss:"T53N R32-33W",lat:46.9975,lon:-88.3909,score:14,notes:"10 old quarry sites in/around Jacobsville village. Red to red/white variegated. Many flooded (look like ponds). Multiple owners. Core drilling scheduled 1999.",suit:"VERIFY",owner:"Multiple private owners",address:"Houghton Co. Register of Deeds, Houghton, MI",phone:"(906) 482-1150",status:"Identify individual parcel owners. Some may be willing to lease."},
+  {id:"23",stone:"Pegmatite",county:"Dickinson",plss:"T42N R29W S20",lat:46.0264,lon:-87.9658,score:11,notes:"Pink to orange with mica. 60 ft high x 300 ft wide cliff face (south face shot off). Larger deposit extends N. 300 ft from private home/camp. Partially State land.",suit:"VERIFY",owner:"Rev. Will Blomquist / State of MI",address:"Groveland Mine Rd & M69, Dickinson Co.",phone:"(906) 774-0955",status:"Confirm parcel split. Contact DNR for state portion, Blomquist for private."},
+  {id:"9",stone:"Granite",county:"Marquette",plss:"T46N R26W S22",lat:46.3743,lon:-87.5685,score:9,notes:"Pink to orange granite. Both sides M35 ~6 mi S of Palmer at Fifteen Creek crossing. Tilden Mining land — may be difficult to access due to mine operations.",suit:"VERIFY",owner:"Tilden Mining Co. / Filippi family",address:"~6 mi S of Palmer on M35, Marquette Co.",phone:"(906) 486-8300",status:"Contact Cleveland-Cliffs (Tilden Mine) land dept + locate Filippi family."},
+  {id:"1",stone:"Rhyolite Porphyry",county:"Ontonagon",plss:"T49N R42W S20",lat:46.6351,lon:-89.6526,score:9,notes:"Pinkish-orange groundmass with pink feldspar & gray quartz. Both sides M64, ~3 mi N of Bergland. Weathers to light pink/tan/white. USFS land.",suit:"NOT VIABLE",owner:"US Forest Service (Ottawa NF)",address:"Ottawa NF, Ironwood, MI 49938",phone:"(906) 932-1330",status:"Federal land — no private quarrying permitted."},
+  {id:"91",stone:"Marble (white)",county:"Dickinson",plss:"T42N R30W S35",lat:45.9975,lon:-88.0284,score:8,notes:"White marble, former quarry cut into mountainside, ~100 ft wide, drilled & blasted, closed 30-50 yrs. Take road across from Randville Bar, ~6/10 mi N. Good Potential per Appendix H.",suit:"VERIFY",owner:"Multiple owners",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Research parcel owners. Ask Don Hamby at nearby corner house."},
+  {id:"6",stone:"Jacobsville Sandstone",county:"Alger",plss:"T46N R17W S28",lat:46.5617,lon:-86.6042,score:null,notes:"Lindberg & Sons operation; active sandstone quarry. Thin veneer potential.",suit:"VIABLE",owner:"A. Lindberg & Sons Inc.",address:"599 Washington St, Ishpeming, MI 49849",phone:"(906) 486-4459",status:"Call to confirm lease/sale interest."},
+  {id:"7a",stone:"Jacobsville Sandstone",county:"Alger",plss:"T46N R17W S34",lat:46.5283,lon:-86.6042,score:null,notes:"Alger Stone Company site A; active local sandstone operation near Munising.",suit:"VIABLE",owner:"Alger Stone Company",address:"E9151 Prospect St, Munising, MI 49862",phone:"(906) 387-2511",status:"Active quarry — excess stone or lease. Contact: Mike Alger."},
+  {id:"7b",stone:"Jacobsville Sandstone",county:"Alger",plss:"T46N R17W S34",lat:46.5283,lon:-86.6042,score:null,notes:"Alger Stone Company site B; secondary face, same operation as 7a.",suit:"VIABLE",owner:"Alger Stone Company",address:"E9151 Prospect St, Munising, MI 49862",phone:"(906) 387-2511",status:"Same contact as 7a."},
+  {id:"15",stone:"Jacobsville Sandstone",county:"Marquette",plss:"T49N R25W S10",lat:46.8167,lon:-87.75,score:null,notes:"Near Chocolay Township. Good outcrop with veneer potential.",suit:"VERIFY",owner:"Marquette Co. / Private",address:"Marquette Co. Register of Deeds",phone:"(906) 225-8415",status:"Confirm ownership via county records."},
+  {id:"16",stone:"Tremolitic Marble",county:"Marquette",plss:"T46N R27W S12",lat:46.5394,lon:-87.9722,score:null,notes:"Tilden Mine tailings. Marble waste from iron ore processing. Ornamental potential if clean.",suit:"VERIFY",owner:"Cleveland-Cliffs Inc.",address:"200 Public Square, Cleveland, OH 44114",phone:"(216) 694-5700",status:"Inquiry re: tailings/waste stone purchase."},
+  {id:"20",stone:"Dolostone (Randville)",county:"Dickinson",plss:"T40N R30W S22",lat:45.8667,lon:-88.0833,score:null,notes:"Randville Dolostone outcrop. Hard, dense, good for veneer if not too fractured.",suit:"VERIFY",owner:"Private / Unknown",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Research parcel ownership."},
+  {id:"21",stone:"Dolostone (Randville)",county:"Dickinson",plss:"T40N R30W S14",lat:45.8833,lon:-88.0833,score:null,notes:"Same formation as Site 20. Adjacent parcel may be same owner.",suit:"VERIFY",owner:"Private / Unknown",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Cross-reference with Site 20 owner."},
+  {id:"22",stone:"Amphibolite",county:"Dickinson",plss:"T40N R29W S8",lat:45.9,lon:-87.9583,score:null,notes:"Dark amphibolite. Potential for black accent stone. Verify quarryability.",suit:"VERIFY",owner:"Private / Unknown",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Ownership research needed."},
+  {id:"24/25",stone:"Black Jaspilite / BIF",county:"Marquette",plss:"T47N R26W S16",lat:46.6167,lon:-87.8333,score:null,notes:"Banded Iron Formation. Striking black/red banding. Decorative veneer potential. Hard material.",suit:"VERIFY",owner:"State / Private",address:"EGLE or Marquette Co. Register of Deeds",phone:"(906) 225-8415",status:"Confirm state vs. private. Check mining permits."},
+  {id:"36",stone:"Granite Gneiss",county:"Dickinson",plss:"T42N R30W S4",lat:46.0417,lon:-88.0833,score:null,notes:"Granite gneiss outcrop in forested area. Good dimensional stone potential.",suit:"VERIFY",owner:"Lyme Great Lakes Timberlands LLC",address:"1 Wedgewood Ct, PO Box 98, Lyme, NH 03768",phone:"(603) 795-2020",status:"Negotiate surface rights for stone extraction."},
+  {id:"38",stone:"Dolostone (Mayville)",county:"Dickinson",plss:"T39N R29W S6",lat:45.825,lon:-87.9583,score:null,notes:"Mayville Dolostone near Norway, MI. Study may have PLSS typo (listed R24W, likely R29W).",suit:"VERIFY",owner:"Private / Unknown",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Confirm PLSS coords. Research parcel owner."},
+  {id:"40",stone:"Felsite Conglomerate",county:"Delta",plss:"T40N R22W S30",lat:45.85,lon:-87.1667,score:null,notes:"Thornton Construction site. Colorful felsite conglomerate. Ornamental potential.",suit:"VIABLE",owner:"Thornton Construction",address:"Escanaba area, Delta Co., MI",phone:"(906) 786-XXXX",status:"Contact re: stone availability / lease."},
+  {id:"41",stone:"Dolostone (Burnt Bluff)",county:"Delta",plss:"T38N R19W S24",lat:45.825,lon:-87.0833,score:null,notes:"Roen's Quarry. Burnt Bluff Dolostone on Lake Michigan shore cliffs. Historical operation.",suit:"VERIFY",owner:"Roen's Quarry / Unknown",address:"Delta Co. Register of Deeds, Escanaba, MI",phone:"(906) 789-5100",status:"Confirm current ownership & activity status."},
+  {id:"47",stone:"Dolostone",county:"Chippewa",plss:"T42N R5E S23",lat:46.0264,lon:-83.7697,score:null,notes:"Somes Quarry. Intermittently operated for dimension stone. Near white to tan/buff. Many local buildings constructed from this stone. Very durable.",suit:"VIABLE",owner:"Unknown – Somes Quarry",address:"Chippewa Co. Register of Deeds, Sault Ste. Marie",phone:"(906) 635-6314",status:"Find current operator of Somes Quarry."},
+  {id:"90",stone:"Marble (white)",county:"Dickinson",plss:"T42N R30W S34",lat:45.9975,lon:-88.0493,score:null,notes:"Same ridge as Site 91. 6-8 concrete pillars visible, past quarry activity. Rated Little Potential (not in top 11). Adjacent to Good Potential Site 91.",suit:"NOT VIABLE",owner:"Multiple owners",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Adjacent to Site 91 — investigate together."},
+  {id:"52",stone:"Sandstone",county:"Alger",plss:"T47N R18W S19",lat:46.4612,lon:-86.6267,score:null,notes:"Sand Point location. No Potential per study.",suit:"NOT VIABLE",owner:"US Forest Svc / NPS",address:"Pictured Rocks NL / Hiawatha NF, Munising",phone:"(906) 387-3700",status:"Federal land — no quarry access."},
+  {id:"53",stone:"Sandstone",county:"Alger",plss:"T47N R19W S28",lat:46.4467,lon:-86.7109,score:null,notes:"Abandoned quarry east of Bay Furnace/Christmas. No Potential.",suit:"NOT VIABLE",owner:"US Forest Service (Hiawatha NF)",address:"Munising Ranger District, Munising MI",phone:"(906) 387-3700",status:"Federal land."},
+  {id:"54",stone:"Sandstone",county:"Alger",plss:"T48N R22W S25",lat:46.5337,lon:-87.0308,score:null,notes:"Abandoned quarry, Laughing Fish Point. No Potential.",suit:"NOT VIABLE",owner:"State / Federal / Private",address:"Alger Co. Register of Deeds",phone:"(906) 387-2080",status:"No potential — low priority."},
+  {id:"55",stone:"Sandstone",county:"Alger",plss:"T47N R22W S34",lat:46.4322,lon:-87.0686,score:null,notes:"Abandoned quarry, Laughing Whitefish River. No Potential.",suit:"NOT VIABLE",owner:"State / Private",address:"Alger Co. Register of Deeds",phone:"(906) 387-2080",status:"No potential — low priority."},
+  {id:"56",stone:"Sandstone",county:"Alger",plss:"T47N R19W S26",lat:46.4467,lon:-86.6688,score:null,notes:"Abandoned quarries, Powell (Paul's) Point. Little Potential.",suit:"NOT VIABLE",owner:"State / Private",address:"Alger Co. Register of Deeds",phone:"(906) 387-2080",status:"Little potential — low priority."},
+  {id:"61",stone:"Sandstone",county:"Chippewa",plss:"T48N R2E S36",lat:46.5192,lon:-84.1223,score:null,notes:"Abandoned quarry, Sugar Island near Churches Landing. No Potential.",suit:"NOT VIABLE",owner:"Private / State",address:"Chippewa Co. Register of Deeds",phone:"(906) 635-6314",status:"No potential — low priority."},
+  {id:"84",stone:"Sandstone (red/white)",county:"Alger",plss:"T47N R21W S8",lat:46.4902,lon:-86.9844,score:null,notes:"Outcropping on M-28/Shelter Bay Rd, ~30 mi east of Marquette. No Potential.",suit:"NOT VIABLE",owner:"State / Private",address:"Alger Co. Register of Deeds",phone:"(906) 387-2080",status:"Roadside outcrop only — no quarry potential."},
+  {id:"85",stone:"Limestone",county:"Delta",plss:"T40N R19W",lat:45.8598,lon:-86.6747,score:null,notes:"Off US-2 near Isabella, MI. No Potential per study.",suit:"NOT VIABLE",owner:"Private (active quarry likely)",address:"Delta Co. Register of Deeds, Escanaba",phone:"(906) 789-5100",status:"No dimension stone potential."}
+];
+
+// ── Map ────────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([46.5, -87.5], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap contributors', maxZoom:18
+}).addTo(map);
+
+const COLOR = {VIABLE:'#2e7d32', VERIFY:'#e65100', 'NOT VIABLE':'#c62828'};
+const markers = {};
+
+function makeIcon(suit, highlight){
+  const c = COLOR[suit]||'#555';
+  const s = highlight?'border:2px solid #000;':'';
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:${highlight?14:11}px;height:${highlight?14:11}px;border-radius:50%;background:${c};${s}border:2px solid rgba(0,0,0,0.35);box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
+    iconSize:[14,14],iconAnchor:[7,7]
+  });
+}
+
+SITES.forEach(s=>{
+  const m = L.marker([s.lat,s.lon],{icon:makeIcon(s.suit,false)}).addTo(map);
+  m.bindTooltip(`<b>#${s.id}</b> ${s.stone}<br><span style="color:${COLOR[s.suit]}">${s.suit}</span>`,{sticky:true});
+  m.on('click',()=>selectSite(s.id));
+  markers[s.id]=m;
+});
+
+// ── Filters ───────────────────────────────────────────────────────────────
+const counties = [...new Set(SITES.map(s=>s.county))].sort();
+const stones   = [...new Set(SITES.map(s=>s.stone.split(' ')[0]))].sort();
+const fCounty = document.getElementById('f-county');
+const fStone  = document.getElementById('f-stone');
+counties.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;fCounty.appendChild(o)});
+stones.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;fStone.appendChild(o)});
+
+document.getElementById('f-suit').addEventListener('change',renderTable);
+document.getElementById('f-county').addEventListener('change',renderTable);
+document.getElementById('f-stone').addEventListener('change',renderTable);
+document.getElementById('f-top11').addEventListener('change',renderTable);
+document.getElementById('f-search').addEventListener('input',renderTable);
+
+function resetFilters(){
+  document.getElementById('f-suit').value='';
+  document.getElementById('f-county').value='';
+  document.getElementById('f-stone').value='';
+  document.getElementById('f-top11').checked=false;
+  document.getElementById('f-search').value='';
+  renderTable();
+}
+
+function getFiltered(){
+  const suit  = document.getElementById('f-suit').value;
+  const county= document.getElementById('f-county').value;
+  const stone = document.getElementById('f-stone').value;
+  const top11 = document.getElementById('f-top11').checked;
+  const q     = document.getElementById('f-search').value.toLowerCase();
+  return SITES.filter(s=>{
+    if(suit   && s.suit!==suit)   return false;
+    if(county && s.county!==county) return false;
+    if(stone  && !s.stone.startsWith(stone)) return false;
+    if(top11  && !s.score)         return false;
+    if(q && !`${s.owner} ${s.notes} ${s.status} ${s.stone}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────
+let sortCol='score', sortDir=-1, activeSiteId=null;
+
+document.querySelectorAll('#tbl thead th').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const col=th.dataset.col;
+    if(sortCol===col) sortDir*=-1; else {sortCol=col;sortDir=-1;}
+    document.querySelectorAll('#tbl thead th').forEach(t=>t.className='');
+    th.className=sortDir===-1?'sort-desc':'sort-asc';
+    renderTable();
+  });
+});
+
+function suitPill(suit){
+  const cls = suit==='VIABLE'?'pill-VIABLE':suit==='VERIFY'?'pill-VERIFY':'pill-NOT';
+  return `<span class="pill ${cls}">${suit}</span>`;
+}
+
+function renderTable(){
+  const filtered = getFiltered();
+  // Update map markers visibility
+  SITES.forEach(s=>{
+    const show = filtered.find(f=>f.id===s.id);
+    if(show) markers[s.id].addTo(map);
+    else markers[s.id].remove();
+  });
+
+  filtered.sort((a,b)=>{
+    let av=a[sortCol]??'', bv=b[sortCol]??'';
+    if(sortCol==='score'){av=a.score??-1; bv=b.score??-1;}
+    if(av<bv) return -sortDir; if(av>bv) return sortDir; return 0;
+  });
+
+  document.getElementById('count-badge').textContent=`${filtered.length} of ${SITES.length} sites`;
+
+  const tbody=document.getElementById('tbl-body');
+  tbody.innerHTML='';
+  filtered.forEach(s=>{
+    const tr=document.createElement('tr');
+    if(s.id===activeSiteId) tr.classList.add('active');
+    tr.innerHTML=`
+      <td><b>${s.id}</b></td>
+      <td>${s.stone}</td>
+      <td>${s.county}</td>
+      <td style="font-size:.7rem">${s.plss}</td>
+      <td>${suitPill(s.suit)}</td>
+      <td style="text-align:center">${s.score?s.score+'/20':'—'}</td>
+      <td>${s.owner}</td>
+      <td>${s.phone}</td>`;
+    tr.addEventListener('click',()=>selectSite(s.id));
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Detail Panel ──────────────────────────────────────────────────────────
+function selectSite(id){
+  activeSiteId=id;
+  const s=SITES.find(x=>x.id===id);
+  if(!s) return;
+
+  // Highlight marker
+  Object.entries(markers).forEach(([mid,m])=>{
+    m.setIcon(makeIcon(SITES.find(x=>x.id===mid).suit, mid===id));
+  });
+  map.setView([s.lat,s.lon],10,{animate:true});
+
+  // Detail panel
+  document.getElementById('detail-empty').style.display='none';
+  const dc=document.getElementById('detail-content');
+  dc.style.display='block';
+  const scoreHtml=s.score?`<span class="score-badge">Score: ${s.score}/20</span>`:'';
+  const suitCls='suit-'+s.suit.replace(/ /g,'-');
+  const mapsUrl=`https://www.google.com/maps?q=${s.lat},${s.lon}`;
+  const phoneNum=s.phone.replace(/[^\d]/g,'');
+  const callHtml=phoneNum.length>=10&&!s.phone.includes('XXXX')?
+    `<a class="action-link btn-call" href="tel:${phoneNum}">📞 ${s.phone}</a>`:'';
+
+  dc.innerHTML=`
+    <div class="detail-title">Site #${s.id} ${scoreHtml}</div>
+    <div class="detail-stone">${s.stone} &mdash; ${s.county} County</div>
+    <span class="${suitCls} suit-pill">${s.suit}</span>
+    <dl class="dl">
+      <dt>PLSS</dt><dd>${s.plss}</dd>
+      <dt>GPS</dt><dd>${s.lat}, ${s.lon}</dd>
+      <dt>Owner</dt><dd>${s.owner}</dd>
+      <dt>Address</dt><dd>${s.address}</dd>
+      <dt>Phone</dt><dd>${s.phone}</dd>
+    </dl>
+    <a class="action-link btn-map" href="${mapsUrl}" target="_blank">🗺 Open in Maps</a>
+    ${callHtml}
+    <div class="detail-notes"><b>Notes:</b> ${s.notes}<br><br><b>Action:</b> ${s.status}</div>`;
+
+  // Highlight row
+  renderTable();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderTable();
+</script>
+</body>
+</html>
