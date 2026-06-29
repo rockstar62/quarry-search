@@ -140,9 +140,9 @@ const SITES = [
   {id:"9",stone:"Granite",county:"Marquette",plss:"T46N R26W S22",lat:46.3743,lon:-87.5685,score:9,notes:"Pink to orange granite. Both sides M35 ~6 mi S of Palmer at Fifteen Creek crossing. Tilden Mining land — may be difficult to access due to mine operations.",suit:"VERIFY",owner:"Tilden Mining Co. / Filippi family",address:"~6 mi S of Palmer on M35, Marquette Co.",phone:"(906) 486-8300",status:"Contact Cleveland-Cliffs (Tilden Mine) land dept + locate Filippi family."},
   {id:"1",stone:"Rhyolite Porphyry",county:"Ontonagon",plss:"T49N R42W S20",lat:46.6351,lon:-89.6526,score:9,notes:"Pinkish-orange groundmass with pink feldspar & gray quartz. Both sides M64, ~3 mi N of Bergland. Weathers to light pink/tan/white. USFS land.",suit:"NOT VIABLE",owner:"US Forest Service (Ottawa NF)",address:"Ottawa NF, Ironwood, MI 49938",phone:"(906) 932-1330",status:"Federal land — no private quarrying permitted."},
   {id:"91",stone:"Marble (white)",county:"Dickinson",plss:"T42N R30W S35",lat:45.9975,lon:-88.0284,score:8,notes:"White marble, former quarry cut into mountainside, ~100 ft wide, drilled & blasted, closed 30-50 yrs. Take road across from Randville Bar, ~6/10 mi N. Good Potential per Appendix H.",suit:"VERIFY",owner:"Multiple owners",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Research parcel owners. Ask Don Hamby at nearby corner house."},
-  {id:"6",stone:"Dolostone",county:"Alger",plss:"T46N R18W S24 SE¼",lat:46.3673,lon:-86.4901,score:null,notes:"A. Lindberg & Sons aggregate pit. Blue-grey to tan dolostone, beds 3-12\" thick. Both sites in Delta County considered suitable for dimension stone per study.",suit:"VIABLE",owner:"A. Lindberg & Sons Inc.",address:"5741 Percy Road (Co Rd 653), Shingleton, MI 49884",phone:"(906) 486-4459",status:"Call to confirm lease/sale interest. Active aggregate pit off M28 on Percy Road."},
-  {id:"7a",stone:"Jacobsville Sandstone",county:"Alger",plss:"T46N R17W S34",lat:46.5283,lon:-86.6042,score:null,notes:"Alger Stone Company site A; active local sandstone operation near Munising.",suit:"VIABLE",owner:"Alger Stone Company",address:"E9151 Prospect St, Munising, MI 49862",phone:"(906) 387-2511",status:"Active quarry — excess stone or lease. Contact: Mike Alger."},
-  {id:"7b",stone:"Jacobsville Sandstone",county:"Alger",plss:"T46N R17W S34",lat:46.5283,lon:-86.6042,score:null,notes:"Alger Stone Company site B; secondary face, same operation as 7a.",suit:"VIABLE",owner:"Alger Stone Company",address:"E9151 Prospect St, Munising, MI 49862",phone:"(906) 387-2511",status:"Same contact as 7a."},
+  {id:"6",stone:"Dolostone",county:"Alger",plss:"T46N R18W S24 SE¼",lat:46.3673,lon:-86.4901,score:null,notes:"A. Lindberg & Sons aggregate pit. Blue-grey to tan dolostone, beds 3-12\" thick. Suitable for dimension stone per study.",suit:"VIABLE",owner:"A. Lindberg & Sons Inc.",address:"5741 Percy Road (Co Rd 653), Shingleton, MI 49884",phone:"(906) 486-4459",quarryAddr:"5741 Percy Road, Shingleton, MI 49884",status:"Call to confirm lease/sale interest. Active aggregate pit off M28 on Percy Road."},
+  {id:"7a",stone:"Jacobsville Sandstone",county:"Alger",plss:"T47N R21W (verify)",lat:46.4150,lon:-86.6400,score:null,notes:"Alger Stone Company active sandstone operation near Munising. PLSS needs field verification — call before driving out.",suit:"VIABLE",owner:"Alger Stone Company",address:"E9151 Prospect St, Munising, MI 49862",phone:"(906) 387-2511",quarryAddr:"E9151 Prospect St, Munising, MI 49862",status:"Call Mike Alger re: excess stone or lease. Verify exact quarry location on visit."},
+  {id:"7b",stone:"Jacobsville Sandstone",county:"Alger",plss:"T47N R21W (verify)",lat:46.4150,lon:-86.6400,score:null,notes:"Alger Stone Company secondary face, same operation as 7a.",suit:"VIABLE",owner:"Alger Stone Company",address:"E9151 Prospect St, Munising, MI 49862",phone:"(906) 387-2511",quarryAddr:"E9151 Prospect St, Munising, MI 49862",status:"Same contact as 7a. Confirm secondary face location on site visit."},
   {id:"15",stone:"Jacobsville Sandstone",county:"Marquette",plss:"T49N R25W S10",lat:46.8167,lon:-87.75,score:null,notes:"Near Chocolay Township. Good outcrop with veneer potential.",suit:"VERIFY",owner:"Marquette Co. / Private",address:"Marquette Co. Register of Deeds",phone:"(906) 225-8415",status:"Confirm ownership via county records."},
   {id:"16",stone:"Tremolitic Marble",county:"Marquette",plss:"T46N R27W S12",lat:46.5394,lon:-87.9722,score:null,notes:"Tilden Mine tailings. Marble waste from iron ore processing. Ornamental potential if clean.",suit:"VERIFY",owner:"Cleveland-Cliffs Inc.",address:"200 Public Square, Cleveland, OH 44114",phone:"(216) 694-5700",status:"Inquiry re: tailings/waste stone purchase."},
   {id:"20",stone:"Tremolitic Marble",county:"Dickinson",plss:"T42N R30W S34 NE¼ SE¼",lat:45.997,lon:-88.046,score:null,notes:"Crystalline marble — white, pink, pale green, faint blue. Newly developed cut in Randville dolomite ridge, 1 mi east of M95/railroad at Randville. Beds strike N20°E, dip 77°N.",suit:"VERIFY",owner:"Private / Unknown",address:"Dickinson Co. Register of Deeds, Iron Mountain",phone:"(906) 774-0955",status:"Research parcel ownership near Randville, MI."},
@@ -302,7 +302,9 @@ function selectSite(id){
   dc.style.display='block';
   const scoreHtml=s.score?`<span class="score-badge">Score: ${s.score}/20</span>`:'';
   const suitCls='suit-'+s.suit.replace(/ /g,'-');
-  const mapsUrl=`https://www.google.com/maps?q=${s.lat},${s.lon}`;
+  const mapsUrl=s.quarryAddr
+    ? `https://www.google.com/maps/search/${encodeURIComponent(s.quarryAddr)}`
+    : `https://www.google.com/maps?q=${s.lat},${s.lon}`;
   const phoneNum=s.phone.replace(/[^\d]/g,'');
   const callHtml=phoneNum.length>=10&&!s.phone.includes('XXXX')?
     `<a class="action-link btn-call" href="tel:${phoneNum}">📞 ${s.phone}</a>`:'';
@@ -313,7 +315,7 @@ function selectSite(id){
     <span class="${suitCls} suit-pill">${s.suit}</span>
     <dl class="dl">
       <dt>PLSS</dt><dd>${s.plss}</dd>
-      <dt>GPS</dt><dd>${s.lat}, ${s.lon}</dd>
+      ${s.quarryAddr?`<dt>Quarry Addr</dt><dd>${s.quarryAddr}</dd>`:`<dt>GPS</dt><dd>${s.lat}, ${s.lon}</dd>`}
       <dt>Owner</dt><dd>${s.owner}</dd>
       <dt>Address</dt><dd>${s.address}</dd>
       <dt>Phone</dt><dd>${s.phone}</dd>
